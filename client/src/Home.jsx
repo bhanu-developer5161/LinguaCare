@@ -1,4 +1,5 @@
-import { Search, Globe2, ShieldCheck, ArrowRight, Star } from "lucide-react";
+import { Search, Globe2, ArrowRight, Star } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import "./App.css";
 
 const educators = [
@@ -28,7 +29,9 @@ const educators = [
   },
 ];
 
-function App() {
+function Home() {
+  const navigate = useNavigate();
+
   return (
     <div className="app">
       <nav className="navbar">
@@ -41,8 +44,22 @@ function App() {
           <a href="#how">How it works</a>
           <a href="#educators">Educators</a>
           <a href="#languages">Languages</a>
-          <button className="login-btn">Log in</button>
-          <button className="primary-btn">Get started</button>
+
+          <button
+            type="button"
+            className="login-btn"
+            onClick={() => navigate("/login")}
+          >
+            Log in
+          </button>
+
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={() => navigate("/register")}
+          >
+            Get started
+          </button>
         </div>
       </nav>
 
@@ -61,14 +78,24 @@ function App() {
 
             <p>
               Connect with carefully matched bilingual governesses and au pairs
-              who bring language, culture, and learning into everyday family life.
+              who bring language, culture, and learning into everyday family
+              life.
             </p>
 
             <div className="hero-actions">
-              <button className="primary-btn large">
+              <button
+                type="button"
+                className="primary-btn large"
+                onClick={() => navigate("/educators")}
+              >
                 Find an educator <ArrowRight size={18} />
               </button>
-              <button className="secondary-btn">
+
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => navigate("/register?role=educator")}
+              >
                 Become an educator
               </button>
             </div>
@@ -79,6 +106,7 @@ function App() {
                 <span>EG</span>
                 <span>ML</span>
               </div>
+
               <div>
                 <div className="stars">
                   <Star size={14} fill="currentColor" />
@@ -87,6 +115,7 @@ function App() {
                   <Star size={14} fill="currentColor" />
                   <Star size={14} fill="currentColor" />
                 </div>
+
                 <small>Trusted by families worldwide</small>
               </div>
             </div>
@@ -107,17 +136,25 @@ function App() {
                 <strong>French</strong>
                 <small>Native</small>
               </div>
+
               <div>
                 <strong>6+ yrs</strong>
                 <small>Experience</small>
               </div>
+
               <div>
                 <strong>4.9</strong>
                 <small>Rating</small>
               </div>
             </div>
 
-            <button className="profile-btn">View profile</button>
+            <button
+              type="button"
+              className="profile-btn"
+              onClick={() => navigate("/educators")}
+            >
+              View profile
+            </button>
           </div>
         </section>
 
@@ -137,7 +174,11 @@ function App() {
             <strong>Anywhere</strong>
           </div>
 
-          <button className="search-btn">
+          <button
+            type="button"
+            className="search-btn"
+            onClick={() => navigate("/educators")}
+          >
             <Search size={19} />
             Search
           </button>
@@ -149,6 +190,7 @@ function App() {
               <p className="section-tag">Explore languages</p>
               <h2>Learning that becomes part of everyday life.</h2>
             </div>
+
             <p>
               Choose from experienced educators who make language learning
               natural through daily conversation, play, and cultural immersion.
@@ -188,16 +230,28 @@ function App() {
             {educators.map((educator) => (
               <div className="educator-card" key={educator.name}>
                 <div className="educator-avatar">{educator.initials}</div>
+
                 <div className="educator-info">
                   <div className="rating">
                     <Star size={14} fill="currentColor" />
                     {educator.rating}
                   </div>
+
                   <h3>{educator.name}</h3>
-                  <p>{educator.language} · {educator.location}</p>
+
+                  <p>
+                    {educator.language} · {educator.location}
+                  </p>
+
                   <small>{educator.experience} experience</small>
                 </div>
-                <button className="arrow-btn">
+
+                <button
+                  type="button"
+                  className="arrow-btn"
+                  aria-label={`View ${educator.name}`}
+                  onClick={() => navigate("/educators")}
+                >
                   <ArrowRight size={18} />
                 </button>
               </div>
@@ -215,19 +269,26 @@ function App() {
             <div>
               <span>01</span>
               <h3>Tell us what you need</h3>
-              <p>Share your family's language, schedule, and learning goals.</p>
+              <p>
+                Share your family's language, schedule, and learning goals.
+              </p>
             </div>
 
             <div>
               <span>02</span>
               <h3>Discover your matches</h3>
-              <p>Explore educators whose experience fits your family's needs.</p>
+              <p>
+                Explore educators whose experience fits your family's needs.
+              </p>
             </div>
 
             <div>
               <span>03</span>
               <h3>Start the journey</h3>
-              <p>Connect, arrange a conversation, and build a lasting relationship.</p>
+              <p>
+                Connect, arrange a conversation, and build a lasting
+                relationship.
+              </p>
             </div>
           </div>
         </section>
@@ -241,7 +302,11 @@ function App() {
             </p>
           </div>
 
-          <button className="primary-btn large">
+          <button
+            type="button"
+            className="primary-btn large"
+            onClick={() => navigate("/educators")}
+          >
             Find an educator <ArrowRight size={18} />
           </button>
         </section>
@@ -252,10 +317,12 @@ function App() {
           <span className="logo-mark">L</span>
           Lingua<span>Care</span>
         </div>
+
         <p>Language, culture, and care — together.</p>
       </footer>
     </div>
   );
 }
 
-export default App;
+export default Home;
+
