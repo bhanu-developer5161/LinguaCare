@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { registerUser } from "../services/api";
 
 const educators = {
   "1": {
@@ -26,6 +27,8 @@ function Register() {
   const educatorId = searchParams.get("educator");
 
   const [role, setRole] = useState("family");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -47,8 +50,6 @@ function Register() {
     about: "",
   });
 
-  const [error, setError] = useState("");
-
   const selectedEducator = educatorId
     ? educators[educatorId]
     : null;
@@ -67,136 +68,202 @@ function Register() {
     setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setIsSubmitting(true);
 
-    // =========================
-    // FAMILY REGISTRATION
-    // =========================
-
-    if (role === "family") {
-      const family = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email.trim().toLowerCase(),
-        phone: formData.phone,
-        password: formData.password,
-        language: formData.language,
-        childAge: formData.childAge,
-        requirements: formData.requirements,
-        role: "family",
-        createdAt: new Date().toISOString(),
-      };
-
-      // Save family account
-      localStorage.setItem(
-        "familyUser",
-        JSON.stringify(family)
-      );
-
+    try {
       // =========================
-      // CREATE INTEREST REQUEST
+      // FAMILY REGISTRATION
       // =========================
 
-      if (educatorId) {
-        const educator = selectedEducator || {
-          name: "Educator",
-          language: formData.language || "Not specified",
-          location: "Not specified",
-        };
+      if (role === "family") {
+        const email = formData.email.trim().toLowerCase();
 
-        const request = {
-          id:
-            typeof crypto !== "undefined" &&
-            crypto.randomUUID
-              ? crypto.randomUUID()
-              : Date.now().toString(),
+        // Register family in backend
+        await registerUser({
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email,
+          phone: formData.phone.trim(),
+          password: formData.password,
+          role: "family",
+          language: formData.language,
+          childAge: formData.childAge.trim(),
+          requirements: formData.requirements.trim(),
+        });
 
-          family: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email.trim().toLowerCase(),
-            phone: formData.phone,
-            language: formData.language,
-            childAge: formData.childAge,
-            requirements: formData.requirements,
-          },
-
-          educatorId: educatorId,
-
-          educator: {
-            name: educator.name,
-            language: educator.language,
-            location: educator.location,
-          },
-
-          status: "pending",
-
+        // Temporary frontend account
+        // We will remove this after React Login is connected.
+        const family = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email,
+          phone: formData.phone,
+          password: formData.password,
+          language: formData.language,
+          childAge: formData.childAge,
+          requirements: formData.requirements,
+          role: "family",
           createdAt: new Date().toISOString(),
-        };
-
-        const existingRequests = JSON.parse(
-          localStorage.getItem("interestRequests") || "[]"
-        );
-
-        existingRequests.push(request);
-
-        localStorage.setItem(
-          "interestRequests",
-          JSON.stringify(existingRequests)
-        );
-
-        // Connect family account to request
-        const updatedFamily = {
-          ...family,
-          interestedEducatorId: educatorId,
-          interestedEducatorName: educator.name,
-          requestId: request.id,
-          requestStatus: "pending",
         };
 
         localStorage.setItem(
           "familyUser",
-          JSON.stringify(updatedFamily)
+          JSON.stringify(family)
         );
+
+        // =========================
+        // CREATE INTEREST REQUEST
+        // =========================
+
+        if (educatorId) {
+          const educator = selectedEducator || {
+            name: "Educator",
+            language: formData.language || "Not specified",
+            location: "Not specified",
+          };
+
+          const request = {
+            id:
+              typeof crypto !== "undefined" &&
+              crypto.randomUUID
+                ? crypto.randomUUID()
+                : Date.now().toString(),
+
+            family: {
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              email,
+              phone: formData.phone,
+              language: formData.language,
+              childAge: formData.childAge,
+              requirements: formData.requirements,
+            },
+
+            educatorId,
+
+            educator: {
+              name: educator.name,
+              language: educator.language,
+              location: educator.location,
+            },
+
+            status: "pending",
+
+            createdAt: new Date().toISOString(),
+          };
+
+          const existingRequests = JSON.parse(
+            localStorage.getItem("interestRequests") || "[]"
+          );
+
+          // Prevent duplicate request to same educator
+          const duplicateRequest = existingRequests.find(
+            (existingRequest) =>
+              existingRequest.family?.email === email &&
+              existingRequest.educatorId === educatorId &&
+              ["pending", "accepted"].includes(
+                existingRequest.status
+              )
+          );
+
+          if (duplicateRequest) {
+            setError(
+              "You have already sent a request to this educator."
+            );
+            setIsSubmitting(false);
+            return;
+          }
+
+          existingRequests.push(request);
+
+          localStorage.setItem(
+            "interestRequests",
+            JSON.stringify(existingRequests)
+          );
+
+          // Connect family account to request
+          const updatedFamily = {
+            ...family,
+            interestedEducatorId: educatorId,
+            interestedEducatorName: educator.name,
+            requestId: request.id,
+            requestStatus: "pending",
+          };
+
+          localStorage.setItem(
+            "familyUser",
+            JSON.stringify(updatedFamily)
+          );
+        }
+
+        navigate("/family-dashboard");
+        return;
       }
 
-      navigate("/family-dashboard");
-      return;
+      // =========================
+      // EDUCATOR REGISTRATION
+      // =========================
+
+      const skillsArray = formData.skills
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter(Boolean);
+
+      const email = formData.email.trim().toLowerCase();
+
+      // Register educator in backend
+      await registerUser({
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email,
+        phone: formData.phone.trim(),
+        password: formData.password,
+        role: "educator",
+        language: formData.language,
+        education: formData.education.trim(),
+        experience: formData.experience,
+        skills: skillsArray,
+        location: formData.location.trim(),
+        about: formData.about.trim(),
+      });
+
+      // Temporary frontend account
+      // We will remove this after React Login is connected.
+      const educator = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email,
+        phone: formData.phone,
+        password: formData.password,
+        language: formData.language,
+        location: formData.location,
+        education: formData.education,
+        experience: formData.experience,
+        skills: skillsArray,
+        about: formData.about,
+        role: "educator",
+        createdAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem(
+        "educatorUser",
+        JSON.stringify(educator)
+      );
+
+      navigate("/educator-dashboard");
+    } catch (error) {
+      console.error("Registration error:", error);
+
+      setError(
+        error.message ||
+          "Registration failed. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // =========================
-    // EDUCATOR REGISTRATION
-    // =========================
-
-    const skillsArray = formData.skills
-      .split(",")
-      .map((skill) => skill.trim())
-      .filter(Boolean);
-
-    const educator = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email.trim().toLowerCase(),
-      phone: formData.phone,
-      password: formData.password,
-      language: formData.language,
-      location: formData.location,
-      education: formData.education,
-      experience: formData.experience,
-      skills: skillsArray,
-      about: formData.about,
-      role: "educator",
-      createdAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem(
-      "educatorUser",
-      JSON.stringify(educator)
-    );
-
-    navigate("/educator-dashboard");
   };
 
   return (
@@ -242,7 +309,6 @@ function Register() {
         {/* ROLE SWITCH */}
 
         <div className="role-switch">
-
           <button
             type="button"
             className={
@@ -270,7 +336,6 @@ function Register() {
           >
             Educator
           </button>
-
         </div>
 
         {/* REGISTRATION FORM */}
@@ -580,8 +645,11 @@ function Register() {
           <button
             type="submit"
             className="register-button"
+            disabled={isSubmitting}
           >
-            {role === "family"
+            {isSubmitting
+              ? "Creating Account..."
+              : role === "family"
               ? educatorId
                 ? "Create Account & Send Interest"
                 : "Create Family Account"
