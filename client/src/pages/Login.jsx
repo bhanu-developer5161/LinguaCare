@@ -1,9 +1,13 @@
+
+"use client";
+
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { loginUser } from "../services/api";
 
-function Login() {
-  const navigate = useNavigate();
+export default function Login() {
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -34,45 +38,43 @@ function Login() {
         password: formData.password,
       });
 
-      const user = response.user;
-      const token = response.token;
+      const user = response?.user;
+      const token = response?.token;
 
-      // Make sure the backend returned both user and JWT.
       if (!user || !token) {
         throw new Error(
           "Login succeeded, but authentication data was not received."
         );
       }
 
-      // Store JWT separately from user information.
+      if (user.role !== "family" && user.role !== "educator") {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("familyUser");
+        localStorage.removeItem("educatorUser");
+
+        setError("Invalid account role.");
+        return;
+      }
+
+      // Store the authentication token.
       localStorage.setItem("authToken", token);
 
-      // Store only safe user information.
-      // The backend removes the password before sending this response.
+      // Save the authenticated user's information.
       if (user.role === "family") {
-        localStorage.setItem(
-          "familyUser",
-          JSON.stringify(user)
-        );
+        localStorage.setItem("familyUser", JSON.stringify(user));
+        localStorage.removeItem("educatorUser");
 
-        navigate("/family-dashboard");
+        router.push("/family-dashboard");
         return;
       }
 
       if (user.role === "educator") {
-        localStorage.setItem(
-          "educatorUser",
-          JSON.stringify(user)
-        );
+        localStorage.setItem("educatorUser", JSON.stringify(user));
+        localStorage.removeItem("familyUser");
 
-        navigate("/educator-dashboard");
+        router.push("/educator-dashboard");
         return;
       }
-
-      // Unknown role
-      localStorage.removeItem("authToken");
-
-      setError("Invalid account role.");
     } catch (error) {
       console.error("Login error:", error);
 
@@ -89,30 +91,21 @@ function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <p className="eyebrow">
-            WELCOME BACK
-          </p>
+          <p className="eyebrow">WELCOME BACK</p>
 
-          <h1>
-            Log in to LinguaCare
-          </h1>
+          <h1>Log in to LinguaCare</h1>
 
           <p>
-            Access your LinguaCare account and
-            continue your journey.
+            Access your LinguaCare account and continue your journey.
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="login-form"
-        >
+        <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label>
-              Email Address
-            </label>
+            <label htmlFor="login-email">Email Address</label>
 
             <input
+              id="login-email"
               type="email"
               name="email"
               placeholder="you@example.com"
@@ -120,15 +113,15 @@ function Login() {
               onChange={handleChange}
               autoComplete="email"
               required
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="form-group">
-            <label>
-              Password
-            </label>
+            <label htmlFor="login-password">Password</label>
 
             <input
+              id="login-password"
               type="password"
               name="password"
               placeholder="Enter your password"
@@ -136,11 +129,12 @@ function Login() {
               onChange={handleChange}
               autoComplete="current-password"
               required
+              disabled={isSubmitting}
             />
           </div>
 
           {error && (
-            <div className="login-error">
+            <div className="login-error" role="alert">
               {error}
             </div>
           )}
@@ -150,22 +144,15 @@ function Login() {
             className="login-button"
             disabled={isSubmitting}
           >
-            {isSubmitting
-              ? "Logging in..."
-              : "Log In"}
+            {isSubmitting ? "Logging in..." : "Log In"}
           </button>
         </form>
 
         <p className="login-register">
-          Don't have an account?{" "}
-
-          <Link to="/register">
-            Create an account
-          </Link>
+          Don&apos;t have an account?{" "}
+          <Link href="/register">Create an account</Link>
         </p>
       </div>
     </div>
   );
 }
-
-export default Login;

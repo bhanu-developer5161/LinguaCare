@@ -1,5 +1,9 @@
-import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
+"use client";
+
+import { useState, Suspense } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { registerUser } from "../services/api";
 
 const educators = {
@@ -20,9 +24,9 @@ const educators = {
   },
 };
 
-function Register() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+function RegisterForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const educatorId = searchParams.get("educator");
 
@@ -36,13 +40,9 @@ function Register() {
     email: "",
     phone: "",
     password: "",
-
-    // Family fields
     language: "",
     childAge: "",
     requirements: "",
-
-    // Educator fields
     education: "",
     experience: "",
     skills: "",
@@ -74,14 +74,10 @@ function Register() {
     setIsSubmitting(true);
 
     try {
-      // =========================
-      // FAMILY REGISTRATION
-      // =========================
+      const email = formData.email.trim().toLowerCase();
 
       if (role === "family") {
-        const email = formData.email.trim().toLowerCase();
-
-        // Register family in backend
+        // Register the family in the backend.
         await registerUser({
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
@@ -94,30 +90,24 @@ function Register() {
           requirements: formData.requirements.trim(),
         });
 
-        // Temporary frontend account
-        // We will remove this after React Login is connected.
         const family = {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
           email,
-          phone: formData.phone,
-          password: formData.password,
+          phone: formData.phone.trim(),
           language: formData.language,
-          childAge: formData.childAge,
-          requirements: formData.requirements,
+          childAge: formData.childAge.trim(),
+          requirements: formData.requirements.trim(),
           role: "family",
           createdAt: new Date().toISOString(),
         };
 
-        localStorage.setItem(
-          "familyUser",
-          JSON.stringify(family)
-        );
+        // Do not store the password in localStorage.
+        localStorage.setItem("familyUser", JSON.stringify(family));
+        localStorage.removeItem("educatorUser");
 
-        // =========================
-        // CREATE INTEREST REQUEST
-        // =========================
-
+        // Create a local demo interest request when an educator
+        // was selected through the registration URL.
         if (educatorId) {
           const educator = selectedEducator || {
             name: "Educator",
@@ -125,47 +115,16 @@ function Register() {
             location: "Not specified",
           };
 
-          const request = {
-            id:
-              typeof crypto !== "undefined" &&
-              crypto.randomUUID
-                ? crypto.randomUUID()
-                : Date.now().toString(),
-
-            family: {
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-              email,
-              phone: formData.phone,
-              language: formData.language,
-              childAge: formData.childAge,
-              requirements: formData.requirements,
-            },
-
-            educatorId,
-
-            educator: {
-              name: educator.name,
-              language: educator.language,
-              location: educator.location,
-            },
-
-            status: "pending",
-
-            createdAt: new Date().toISOString(),
-          };
-
           const existingRequests = JSON.parse(
             localStorage.getItem("interestRequests") || "[]"
           );
 
-          // Prevent duplicate request to same educator
           const duplicateRequest = existingRequests.find(
-            (existingRequest) =>
-              existingRequest.family?.email === email &&
-              existingRequest.educatorId === educatorId &&
+            (request) =>
+              request.family?.email === email &&
+              request.educatorId === educatorId &&
               ["pending", "accepted"].includes(
-                existingRequest.status
+                String(request.status).toLowerCase()
               )
           );
 
@@ -173,9 +132,35 @@ function Register() {
             setError(
               "You have already sent a request to this educator."
             );
-            setIsSubmitting(false);
             return;
           }
+
+          const requestId =
+            typeof crypto !== "undefined" &&
+            typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `${Date.now()}`;
+
+          const request = {
+            id: requestId,
+            family: {
+              firstName: family.firstName,
+              lastName: family.lastName,
+              email: family.email,
+              phone: family.phone,
+              language: family.language,
+              childAge: family.childAge,
+              requirements: family.requirements,
+            },
+            educatorId,
+            educator: {
+              name: educator.name,
+              language: educator.language,
+              location: educator.location,
+            },
+            status: "pending",
+            createdAt: new Date().toISOString(),
+          };
 
           existingRequests.push(request);
 
@@ -184,12 +169,11 @@ function Register() {
             JSON.stringify(existingRequests)
           );
 
-          // Connect family account to request
           const updatedFamily = {
             ...family,
             interestedEducatorId: educatorId,
             interestedEducatorName: educator.name,
-            requestId: request.id,
+            requestId,
             requestStatus: "pending",
           };
 
@@ -199,22 +183,16 @@ function Register() {
           );
         }
 
-        navigate("/family-dashboard");
+        router.push("/family-dashboard");
         return;
       }
 
-      // =========================
-      // EDUCATOR REGISTRATION
-      // =========================
-
+      // Educator registration.
       const skillsArray = formData.skills
         .split(",")
         .map((skill) => skill.trim())
         .filter(Boolean);
 
-      const email = formData.email.trim().toLowerCase();
-
-      // Register educator in backend
       await registerUser({
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -230,36 +208,31 @@ function Register() {
         about: formData.about.trim(),
       });
 
-      // Temporary frontend account
-      // We will remove this after React Login is connected.
       const educator = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
         email,
-        phone: formData.phone,
-        password: formData.password,
+        phone: formData.phone.trim(),
         language: formData.language,
-        location: formData.location,
-        education: formData.education,
+        location: formData.location.trim(),
+        education: formData.education.trim(),
         experience: formData.experience,
         skills: skillsArray,
-        about: formData.about,
+        about: formData.about.trim(),
         role: "educator",
         createdAt: new Date().toISOString(),
       };
 
-      localStorage.setItem(
-        "educatorUser",
-        JSON.stringify(educator)
-      );
+      // Do not store the password in localStorage.
+      localStorage.setItem("educatorUser", JSON.stringify(educator));
+      localStorage.removeItem("familyUser");
 
-      navigate("/educator-dashboard");
+      router.push("/educator-dashboard");
     } catch (error) {
       console.error("Registration error:", error);
 
       setError(
-        error.message ||
-          "Registration failed. Please try again."
+        error.message || "Registration failed. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -269,378 +242,276 @@ function Register() {
   return (
     <div className="register-page">
       <div className="register-card">
-
-        {/* HEADER */}
-
         <div className="register-header">
-          <p className="eyebrow">
-            CREATE YOUR ACCOUNT
-          </p>
+          <p className="eyebrow">CREATE YOUR ACCOUNT</p>
 
-          <h1>
-            Join LinguaCare
-          </h1>
+          <h1>Join LinguaCare</h1>
 
           <p>
-            Create your account and connect with the
-            right language immersion opportunity.
+            Create your account and connect with the right language
+            immersion opportunity.
           </p>
         </div>
 
-        {/* SELECTED EDUCATOR */}
-
         {selectedEducator && role === "family" && (
           <div className="selected-educator">
-            <p className="eyebrow">
-              YOU ARE INTERESTED IN
-            </p>
-
-            <h3>
-              {selectedEducator.name}
-            </h3>
-
+            <p className="eyebrow">YOU ARE INTERESTED IN</p>
+            <h3>{selectedEducator.name}</h3>
             <p>
-              {selectedEducator.language} ·{" "}
-              {selectedEducator.location}
+              {selectedEducator.language} · {selectedEducator.location}
             </p>
           </div>
         )}
 
-        {/* ROLE SWITCH */}
-
         <div className="role-switch">
           <button
             type="button"
-            className={
-              role === "family"
-                ? "active"
-                : ""
-            }
-            onClick={() =>
-              handleRoleChange("family")
-            }
+            className={role === "family" ? "active" : ""}
+            onClick={() => handleRoleChange("family")}
+            disabled={isSubmitting}
           >
             Family
           </button>
 
           <button
             type="button"
-            className={
-              role === "educator"
-                ? "active"
-                : ""
-            }
-            onClick={() =>
-              handleRoleChange("educator")
-            }
+            className={role === "educator" ? "active" : ""}
+            onClick={() => handleRoleChange("educator")}
+            disabled={isSubmitting}
           >
             Educator
           </button>
         </div>
 
-        {/* REGISTRATION FORM */}
-
-        <form
-          onSubmit={handleSubmit}
-          className="register-form"
-        >
-
-          {/* NAME */}
-
+        <form onSubmit={handleSubmit} className="register-form">
           <div className="form-row">
-
             <div className="form-group">
-              <label>
-                First Name
-              </label>
-
+              <label htmlFor="register-first-name">First Name</label>
               <input
+                id="register-first-name"
                 type="text"
                 name="firstName"
                 placeholder="First name"
                 value={formData.firstName}
                 onChange={handleChange}
+                autoComplete="given-name"
                 required
+                disabled={isSubmitting}
               />
             </div>
 
             <div className="form-group">
-              <label>
-                Last Name
-              </label>
-
+              <label htmlFor="register-last-name">Last Name</label>
               <input
+                id="register-last-name"
                 type="text"
                 name="lastName"
                 placeholder="Last name"
                 value={formData.lastName}
                 onChange={handleChange}
+                autoComplete="family-name"
                 required
+                disabled={isSubmitting}
               />
             </div>
-
           </div>
 
-          {/* EMAIL */}
-
           <div className="form-group">
-            <label>
-              Email Address
-            </label>
-
+            <label htmlFor="register-email">Email Address</label>
             <input
+              id="register-email"
               type="email"
               name="email"
               placeholder="you@example.com"
               value={formData.email}
               onChange={handleChange}
+              autoComplete="email"
               required
+              disabled={isSubmitting}
             />
           </div>
 
-          {/* PASSWORD */}
-
           <div className="form-group">
-            <label>
-              Password
-            </label>
-
+            <label htmlFor="register-password">Password</label>
             <input
+              id="register-password"
               type="password"
               name="password"
               placeholder="Create a password"
               value={formData.password}
               onChange={handleChange}
-              minLength="6"
+              autoComplete="new-password"
+              minLength={6}
               required
+              disabled={isSubmitting}
             />
-
-            <small>
-              Password must contain at least 6 characters.
-            </small>
+            <small>Password must contain at least 6 characters.</small>
           </div>
-
-          {/* PHONE */}
 
           <div className="form-group">
-            <label>
-              Phone Number
-            </label>
-
+            <label htmlFor="register-phone">Phone Number</label>
             <input
+              id="register-phone"
               type="tel"
               name="phone"
-              placeholder="+1 234 567 890"
+              placeholder="Enter your phone number"
               value={formData.phone}
               onChange={handleChange}
+              autoComplete="tel"
               required
+              disabled={isSubmitting}
             />
           </div>
-
-          {/* ========================= */}
-          {/* FAMILY FORM */}
-          {/* ========================= */}
 
           {role === "family" ? (
             <>
               <div className="form-group">
-                <label>
-                  Preferred Language
-                </label>
-
+                <label htmlFor="family-language">Preferred Language</label>
                 <select
+                  id="family-language"
                   name="language"
                   value={formData.language}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 >
-                  <option value="">
-                    Select language
-                  </option>
-
-                  <option value="French">
-                    French
-                  </option>
-
-                  <option value="Spanish">
-                    Spanish
-                  </option>
-
-                  <option value="Mandarin">
-                    Mandarin
-                  </option>
+                  <option value="">Select language</option>
+                  <option value="French">French</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="Mandarin">Mandarin</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label>
-                  Child's Age
-                </label>
-
+                <label htmlFor="child-age">Child&apos;s Age</label>
                 <input
+                  id="child-age"
                   type="text"
                   name="childAge"
                   placeholder="Example: 6 years"
                   value={formData.childAge}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div className="form-group">
-                <label>
+                <label htmlFor="family-requirements">
                   What are you looking for?
                 </label>
-
                 <textarea
+                  id="family-requirements"
                   name="requirements"
                   placeholder="Tell us about your family's requirements..."
                   value={formData.requirements}
                   onChange={handleChange}
-                  rows="5"
+                  rows={5}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </>
           ) : (
-            /* ========================= */
-            /* EDUCATOR FORM */
-            /* ========================= */
-
             <>
               <div className="form-group">
-                <label>
-                  Location
-                </label>
-
+                <label htmlFor="educator-location">Location</label>
                 <input
+                  id="educator-location"
                   type="text"
                   name="location"
                   placeholder="Paris, France"
                   value={formData.location}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div className="form-group">
-                <label>
-                  Language
-                </label>
-
+                <label htmlFor="educator-language">Language</label>
                 <select
+                  id="educator-language"
                   name="language"
                   value={formData.language}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 >
-                  <option value="">
-                    Select language
-                  </option>
-
-                  <option value="French">
-                    French
-                  </option>
-
-                  <option value="Spanish">
-                    Spanish
-                  </option>
-
-                  <option value="Mandarin">
-                    Mandarin
-                  </option>
+                  <option value="">Select language</option>
+                  <option value="French">French</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="Mandarin">Mandarin</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label>
-                  Education
-                </label>
-
+                <label htmlFor="educator-education">Education</label>
                 <input
+                  id="educator-education"
                   type="text"
                   name="education"
                   placeholder="Early Childhood Education"
                   value={formData.education}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div className="form-group">
-                <label>
-                  Experience
-                </label>
-
+                <label htmlFor="educator-experience">Experience</label>
                 <select
+                  id="educator-experience"
                   name="experience"
                   value={formData.experience}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 >
-                  <option value="">
-                    Select experience
-                  </option>
-
-                  <option value="1-3 years">
-                    1–3 years
-                  </option>
-
-                  <option value="3-5 years">
-                    3–5 years
-                  </option>
-
-                  <option value="5+ years">
-                    5+ years
-                  </option>
+                  <option value="">Select experience</option>
+                  <option value="1-3 years">1–3 years</option>
+                  <option value="3-5 years">3–5 years</option>
+                  <option value="5+ years">5+ years</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label>
-                  Skills
-                </label>
-
+                <label htmlFor="educator-skills">Skills</label>
                 <input
+                  id="educator-skills"
                   type="text"
                   name="skills"
                   placeholder="French Immersion, Childcare, Storytelling"
                   value={formData.skills}
                   onChange={handleChange}
                   required
+                  disabled={isSubmitting}
                 />
-
-                <small>
-                  Separate skills with commas.
-                </small>
+                <small>Separate skills with commas.</small>
               </div>
 
               <div className="form-group">
-                <label>
-                  Professional Summary
-                </label>
-
+                <label htmlFor="educator-about">Professional Summary</label>
                 <textarea
+                  id="educator-about"
                   name="about"
                   placeholder="Tell families about your experience and teaching approach..."
                   value={formData.about}
                   onChange={handleChange}
-                  rows="5"
+                  rows={5}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </>
           )}
 
-          {/* ERROR */}
-
           {error && (
-            <div className="register-error">
+            <div className="register-error" role="alert">
               {error}
             </div>
           )}
-
-          {/* SUBMIT */}
 
           <button
             type="submit"
@@ -650,27 +521,32 @@ function Register() {
             {isSubmitting
               ? "Creating Account..."
               : role === "family"
-              ? educatorId
-                ? "Create Account & Send Interest"
-                : "Create Family Account"
-              : "Create Educator Account"}
+                ? educatorId
+                  ? "Create Account & Send Interest"
+                  : "Create Family Account"
+                : "Create Educator Account"}
           </button>
-
         </form>
-
-        {/* LOGIN */}
 
         <p className="register-login">
           Already have an account?{" "}
-
-          <Link to="/login">
-            Log in
-          </Link>
+          <Link href="/login">Log in</Link>
         </p>
-
       </div>
     </div>
   );
 }
 
-export default Register;
+export default function Register() {
+  return (
+    <Suspense
+      fallback={
+        <div className="register-page">
+          <div className="register-card">Loading registration form...</div>
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
+  );
+}

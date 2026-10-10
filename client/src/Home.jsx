@@ -1,6 +1,8 @@
+
+"use client";
+
 import { Search, Globe2, ArrowRight, Star } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import "./App.css";
+import { useRouter } from "next/navigation";
 
 const educators = [
   {
@@ -29,13 +31,23 @@ const educators = [
   },
 ];
 
-function Home() {
-  const navigate = useNavigate();
+export default function Home() {
+  const router = useRouter();
+
+  const goTo = (path) => router.push(path);
 
   return (
     <div className="app">
       <nav className="navbar">
-        <div className="logo">
+        <div
+          className="logo"
+          onClick={() => goTo("/")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") goTo("/");
+          }}
+        >
           <span className="logo-mark">L</span>
           Lingua<span>Care</span>
         </div>
@@ -48,7 +60,7 @@ function Home() {
           <button
             type="button"
             className="login-btn"
-            onClick={() => navigate("/login")}
+            onClick={() => goTo("/login")}
           >
             Log in
           </button>
@@ -56,7 +68,7 @@ function Home() {
           <button
             type="button"
             className="primary-btn"
-            onClick={() => navigate("/register")}
+            onClick={() => goTo("/register")}
           >
             Get started
           </button>
@@ -86,7 +98,7 @@ function Home() {
               <button
                 type="button"
                 className="primary-btn large"
-                onClick={() => navigate("/educators")}
+                onClick={() => goTo("/educators")}
               >
                 Find an educator <ArrowRight size={18} />
               </button>
@@ -94,7 +106,7 @@ function Home() {
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={() => navigate("/register?role=educator")}
+                onClick={() => goTo("/register?role=educator")}
               >
                 Become an educator
               </button>
@@ -108,12 +120,14 @@ function Home() {
               </div>
 
               <div>
-                <div className="stars">
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
+                <div className="stars" aria-label="Five-star rating">
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <Star
+                      key={index}
+                      size={14}
+                      fill="currentColor"
+                    />
+                  ))}
                 </div>
 
                 <small>Trusted by families worldwide</small>
@@ -151,7 +165,7 @@ function Home() {
             <button
               type="button"
               className="profile-btn"
-              onClick={() => navigate("/educators")}
+              onClick={() => goTo("/educators")}
             >
               View profile
             </button>
@@ -177,7 +191,7 @@ function Home() {
           <button
             type="button"
             className="search-btn"
-            onClick={() => navigate("/educators")}
+            onClick={() => goTo("/educators")}
           >
             <Search size={19} />
             Search
@@ -201,19 +215,25 @@ function Home() {
             <div className="language-card french">
               <span>FR</span>
               <h3>French</h3>
-              <p>Discover language through culture and conversation.</p>
+              <p>
+                Discover language through culture and conversation.
+              </p>
             </div>
 
             <div className="language-card spanish">
               <span>ES</span>
               <h3>Spanish</h3>
-              <p>Make Spanish part of your child's everyday world.</p>
+              <p>
+                Make Spanish part of your child's everyday world.
+              </p>
             </div>
 
             <div className="language-card mandarin">
               <span>中</span>
               <h3>Mandarin</h3>
-              <p>Build confidence through natural language immersion.</p>
+              <p>
+                Build confidence through natural language immersion.
+              </p>
             </div>
           </div>
         </section>
@@ -229,7 +249,9 @@ function Home() {
           <div className="educator-grid">
             {educators.map((educator) => (
               <div className="educator-card" key={educator.name}>
-                <div className="educator-avatar">{educator.initials}</div>
+                <div className="educator-avatar">
+                  {educator.initials}
+                </div>
 
                 <div className="educator-info">
                   <div className="rating">
@@ -250,7 +272,7 @@ function Home() {
                   type="button"
                   className="arrow-btn"
                   aria-label={`View ${educator.name}`}
-                  onClick={() => navigate("/educators")}
+                  onClick={() => goTo("/educators")}
                 >
                   <ArrowRight size={18} />
                 </button>
@@ -305,7 +327,7 @@ function Home() {
           <button
             type="button"
             className="primary-btn large"
-            onClick={() => navigate("/educators")}
+            onClick={() => goTo("/educators")}
           >
             Find an educator <ArrowRight size={18} />
           </button>
@@ -323,6 +345,3 @@ function Home() {
     </div>
   );
 }
-
-export default Home;
-

@@ -1,13 +1,18 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+
+"use client";
+
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import {
   createInterestRequest,
   getEducatorById,
 } from "../services/api";
 
-function EducatorProfile() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+export default function EducatorProfile() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params?.id;
 
   const [educator, setEducator] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,10 +23,12 @@ function EducatorProfile() {
   const [requestSuccess, setRequestSuccess] = useState("");
   const [requestError, setRequestError] = useState("");
 
-  // ==========================================
-  // LOAD EDUCATOR
-  // ==========================================
+  // Load educator profile
   useEffect(() => {
+    if (!id) return;
+
+    let isMounted = true;
+
     const loadEducator = async () => {
       try {
         setIsLoading(true);
@@ -33,72 +40,86 @@ function EducatorProfile() {
           throw new Error("Educator profile not found.");
         }
 
-        setEducator(response.educator);
-      } catch (error) {
-        console.error("Educator profile loading error:", error);
+        if (isMounted) {
+          setEducator(response.educator);
+        }
+      } catch (err) {
+        console.error("Educator profile loading error:", err);
 
-        setError(
-          error.message || "Unable to load educator profile."
-        );
+        if (isMounted) {
+          setError(
+            err.message || "Unable to load educator profile."
+          );
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadEducator();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
-  // ==========================================
-  // SEND INTEREST REQUEST
-  // ==========================================
+  // Send interest request
   const handleSendRequest = async () => {
     setRequestSuccess("");
     setRequestError("");
 
-    const token = localStorage.getItem("authToken");
-
-    if (!token) {
-      setRequestError(
-        "Please log in as a family before sending an interest request."
-      );
-      return;
-    }
-
-    const familyUser = JSON.parse(
-      localStorage.getItem("familyUser") || "null"
-    );
-
-    if (!familyUser) {
-      setRequestError(
-        "Please log in with a family account to send an interest request."
-      );
-      return;
-    }
-
     try {
+      const token = localStorage.getItem("authToken");
+
+      if (!token) {
+        setRequestError(
+          "Please log in as a family before sending an interest request."
+        );
+        return;
+      }
+
+      const storedFamilyUser = localStorage.getItem("familyUser");
+      const familyUser = storedFamilyUser
+        ? JSON.parse(storedFamilyUser)
+        : null;
+
+      if (!familyUser) {
+        setRequestError(
+          "Please log in with a family account to send an interest request."
+        );
+        return;
+      }
+
+      if (!requestMessage.trim()) {
+        setRequestError(
+          "Please enter a message before sending your request."
+        );
+        return;
+      }
+
       setIsSending(true);
 
-      await createInterestRequest(id, requestMessage);
+      await createInterestRequest(id, requestMessage.trim());
 
       setRequestSuccess(
         "Interest request sent successfully! The educator can now review your request."
       );
 
       setRequestMessage("");
-    } catch (error) {
-      console.error("Send interest request error:", error);
+    } catch (err) {
+      console.error("Send interest request error:", err);
 
       setRequestError(
-        error.message || "Unable to send interest request."
+        err.message || "Unable to send interest request."
       );
     } finally {
       setIsSending(false);
     }
   };
 
-  // ==========================================
-  // LOADING STATE
-  // ==========================================
+  // Loading state
   if (isLoading) {
     return (
       <div className="educator-profile-page">
@@ -109,7 +130,7 @@ function EducatorProfile() {
             <h2>Loading educator profile...</h2>
 
             <p>
-              We're securely loading the educator's
+              We&apos;re securely loading the educator&apos;s
               professional information.
             </p>
           </div>
@@ -118,9 +139,7 @@ function EducatorProfile() {
     );
   }
 
-  // ==========================================
-  // ERROR STATE
-  // ==========================================
+  // Error state
   if (error) {
     return (
       <div className="educator-profile-page">
@@ -134,7 +153,7 @@ function EducatorProfile() {
 
             <button
               type="button"
-              onClick={() => navigate("/educators")}
+              onClick={() => router.push("/educators")}
             >
               Back to Educators
             </button>
@@ -145,12 +164,22 @@ function EducatorProfile() {
   }
 
   if (!educator) {
-    return null;
+    return (
+      <div className="educator-profile-page">
+        <div className="educator-profile-card">
+          <div className="profile-empty">
+            <h2>Educator profile not found</h2>
+
+            <Link href="/educators" className="profile-back-link">
+              Back to Educators
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  // ==========================================
-  // PROFILE DATA
-  // ==========================================
+  // Profile data
   const fullName =
     `${educator.firstName || ""} ${educator.lastName || ""}`.trim() ||
     "Educator";
@@ -167,48 +196,29 @@ function EducatorProfile() {
     ? educator.skills
     : [];
 
-  const language =
-    educator.language || "Language not specified";
-
-  const experience =
-    educator.experience || "Experience not specified";
-
-  const location =
-    educator.location || "Location not specified";
-
-  const education =
-    educator.education || "Education not specified";
+  const language = educator.language || "Language not specified";
+  const experience = educator.experience || "Experience not specified";
+  const location = educator.location || "Location not specified";
+  const education = educator.education || "Education not specified";
 
   const about =
     educator.about ||
     "This educator has not added a professional summary yet.";
 
-  // ==========================================
-  // RENDER
-  // ==========================================
   return (
     <div className="educator-profile-page">
-      {/* BACK */}
-      <Link
-        to="/educators"
-        className="profile-back-link"
-      >
+      {/* Back navigation */}
+      <Link href="/educators" className="profile-back-link">
         ← Back to Educators
       </Link>
 
       <div className="educator-profile-card">
-        {/* ======================================
-            PROFILE HERO
-        ====================================== */}
+        {/* Profile hero */}
         <div className="profile-hero">
-          <div className="profile-avatar">
-            {initials}
-          </div>
+          <div className="profile-avatar">{initials}</div>
 
           <div className="profile-hero-content">
-            <p className="eyebrow">
-              LINGUACARE EDUCATOR
-            </p>
+            <p className="eyebrow">LINGUACARE EDUCATOR</p>
 
             <h1>{fullName}</h1>
 
@@ -223,82 +233,58 @@ function EducatorProfile() {
           </div>
 
           <div className="profile-verified">
-            <span className="profile-verified-icon">
-              ✓
-            </span>
-
+            <span className="profile-verified-icon">✓</span>
             <span>Verified Profile</span>
           </div>
         </div>
 
-        {/* ======================================
-            PROFILE CONTENT
-        ====================================== */}
+        {/* Profile content */}
         <div className="profile-content">
-          {/* ====================================
-              ABOUT
-          ==================================== */}
+          {/* About */}
           <section>
             <p className="eyebrow">ABOUT</p>
-
             <h2>Professional Profile</h2>
 
-            <p className="profile-about">
-              {about}
-            </p>
+            <p className="profile-about">{about}</p>
           </section>
 
-          {/* ====================================
-              EDUCATION & EXPERIENCE
-          ==================================== */}
+          {/* Education and experience */}
           <section>
-            <p className="eyebrow">
-              PROFESSIONAL DETAILS
-            </p>
-
-            <h2>Education & Experience</h2>
+            <p className="eyebrow">PROFESSIONAL DETAILS</p>
+            <h2>Education &amp; Experience</h2>
 
             <div className="profile-info-grid">
               <div>
                 <span>Education</span>
-
                 <strong>{education}</strong>
               </div>
 
               <div>
                 <span>Experience</span>
-
                 <strong>{experience}</strong>
               </div>
 
               <div>
                 <span>Language</span>
-
                 <strong>{language}</strong>
               </div>
 
               <div>
                 <span>Location</span>
-
                 <strong>{location}</strong>
               </div>
             </div>
           </section>
 
-          {/* ====================================
-              SKILLS
-          ==================================== */}
+          {/* Skills */}
           <section>
             <p className="eyebrow">SKILLS</p>
-
             <h2>Specializations</h2>
 
             {skills.length > 0 ? (
               <div className="profile-skills">
                 {skills.map((skill, index) => (
-                  <span
-                    key={`${skill}-${index}`}
-                  >
+                  <span key={`${skill}-${index}`}>
                     {skill}
                   </span>
                 ))}
@@ -310,14 +296,10 @@ function EducatorProfile() {
             )}
           </section>
 
-          {/* ====================================
-              INTEREST REQUEST
-          ==================================== */}
+          {/* Interest request */}
           <section className="profile-contact-section">
             <div className="profile-contact-content">
-              <p className="eyebrow">
-                FIND YOUR MATCH
-              </p>
+              <p className="eyebrow">FIND YOUR MATCH</p>
 
               <h2>
                 Interested in working with{" "}
@@ -325,16 +307,13 @@ function EducatorProfile() {
               </h2>
 
               <p>
-                Send an interest request to introduce
-                your family and share what you're
-                looking for.
+                Send an interest request to introduce your family
+                and share what you&apos;re looking for.
               </p>
             </div>
 
             <div className="interest-request-form">
-              <label htmlFor="request-message">
-                Message
-              </label>
+              <label htmlFor="request-message">Message</label>
 
               <textarea
                 id="request-message"
@@ -349,9 +328,7 @@ function EducatorProfile() {
               />
 
               <div className="request-form-footer">
-                <span>
-                  {requestMessage.length}/1000
-                </span>
+                <span>{requestMessage.length}/1000</span>
 
                 <button
                   type="button"
@@ -366,19 +343,13 @@ function EducatorProfile() {
               </div>
 
               {requestSuccess && (
-                <div
-                  className="request-success"
-                  role="status"
-                >
+                <div className="request-success" role="status">
                   ✓ {requestSuccess}
                 </div>
               )}
 
               {requestError && (
-                <div
-                  className="request-error"
-                  role="alert"
-                >
+                <div className="request-error" role="alert">
                   {requestError}
                 </div>
               )}
@@ -389,5 +360,3 @@ function EducatorProfile() {
     </div>
   );
 }
-
-export default EducatorProfile;

@@ -1,475 +1,273 @@
 // ==========================================
-// API BASE URL
+// LINGUACARE API CONFIGURATION
+// Next.js frontend + existing Express backend
 // ==========================================
+
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:5000/api";
+
+// ==========================================
+// SHARED API HELPERS
+// ==========================================
+
+const getAuthToken = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return localStorage.getItem("authToken");
+};
+
+const parseResponse = async (response, fallbackMessage) => {
+  let data = {};
+
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(data.message || fallbackMessage);
+  }
+
+  return data;
+};
+
+const authenticatedFetch = async (url, options = {}) => {
+  const token = getAuthToken();
+
+  if (!token) {
+    throw new Error("Authentication required.");
+  }
+
+  const headers = {
+    ...options.headers,
+    Authorization: `Bearer ${token}`,
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+  });
+};
 
 // ==========================================
 // REGISTER
 // ==========================================
+
 export const registerUser = async (userData) => {
-  const response = await fetch(
-    `${API_BASE_URL}/auth/register`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userData),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(userData),
+  });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Registration failed."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Registration failed.");
 };
 
 // ==========================================
 // LOGIN
 // ==========================================
+
 export const loginUser = async (credentials) => {
-  const response = await fetch(
-    `${API_BASE_URL}/auth/login`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(credentials),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(credentials),
+  });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Login failed."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Login failed.");
 };
 
 // ==========================================
 // GET CURRENT USER
 // ==========================================
+
 export const getCurrentUser = async () => {
-  const token = localStorage.getItem("authToken");
+  const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`);
 
-  if (!token) {
-    throw new Error("Authentication required.");
-  }
-
-  const response = await fetch(
-    `${API_BASE_URL}/auth/me`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to fetch current user."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to fetch current user.");
 };
 
 // ==========================================
 // GET MY PROFILE
 // ==========================================
+
 export const getMyProfile = async () => {
-  const token = localStorage.getItem("authToken");
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/me`);
 
-  if (!token) {
-    throw new Error("Authentication required.");
-  }
-
-  const response = await fetch(
-    `${API_BASE_URL}/users/me`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to fetch profile."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to fetch profile.");
 };
 
 // ==========================================
 // UPDATE MY PROFILE
 // ==========================================
-export const updateMyProfile = async (
-  profileData
-) => {
-  const token = localStorage.getItem("authToken");
 
-  if (!token) {
-    throw new Error("Authentication required.");
-  }
+export const updateMyProfile = async (profileData) => {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/me`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(profileData),
+  });
 
-  const response = await fetch(
-    `${API_BASE_URL}/users/me`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(profileData),
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to update profile."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to update profile.");
 };
 
 // ==========================================
 // GET ALL EDUCATORS
 // ==========================================
+
 export const getEducators = async () => {
-  const response = await fetch(
-    `${API_BASE_URL}/users/educators`,
-    {
-      method: "GET",
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/users/educators`);
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to fetch educators."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to fetch educators.");
 };
 
 // ==========================================
 // GET EDUCATOR BY ID
 // ==========================================
+
 export const getEducatorById = async (id) => {
   if (!id) {
-    throw new Error(
-      "Educator ID is required."
-    );
+    throw new Error("Educator ID is required.");
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/users/educators/${id}`,
-    {
-      method: "GET",
-    }
+    `${API_BASE_URL}/users/educators/${encodeURIComponent(id)}`
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to fetch educator profile."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to fetch educator profile.");
 };
 
 // ==========================================
 // CREATE INTEREST REQUEST
 // ==========================================
+
 export const createInterestRequest = async (
   educatorId,
   message = ""
 ) => {
-  const token = localStorage.getItem(
-    "authToken"
-  );
-
-  if (!token) {
-    throw new Error(
-      "Please log in as a family to send an interest request."
-    );
-  }
-
   if (!educatorId) {
-    throw new Error(
-      "Educator ID is required."
-    );
+    throw new Error("Educator ID is required.");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/requests`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        educatorId,
-        message: message.trim(),
-      }),
-    }
-  );
+  const response = await authenticatedFetch(`${API_BASE_URL}/requests`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      educatorId,
+      message: message.trim(),
+    }),
+  });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to send interest request."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to send interest request.");
 };
 
 // ==========================================
 // GET FAMILY REQUESTS
 // ==========================================
+
 export const getFamilyRequests = async () => {
-  const token = localStorage.getItem(
-    "authToken"
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/requests/family`
   );
 
-  if (!token) {
-    throw new Error("Authentication required.");
-  }
-
-  const response = await fetch(
-    `${API_BASE_URL}/requests/family`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to fetch family requests."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to fetch family requests.");
 };
 
 // ==========================================
 // GET EDUCATOR REQUESTS
 // ==========================================
+
 export const getEducatorRequests = async () => {
-  const token = localStorage.getItem(
-    "authToken"
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/requests/educator`
   );
 
-  if (!token) {
-    throw new Error("Authentication required.");
-  }
-
-  const response = await fetch(
-    `${API_BASE_URL}/requests/educator`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to fetch educator requests."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to fetch educator requests.");
 };
 
 // ==========================================
 // UPDATE REQUEST STATUS
+// Allowed values: pending, accepted, rejected
 // ==========================================
-export const updateRequestStatus = async (
-  requestId,
-  status
-) => {
-  const token = localStorage.getItem(
-    "authToken"
-  );
 
-  if (!token) {
-    throw new Error("Authentication required.");
-  }
-
+export const updateRequestStatus = async (requestId, status) => {
   if (!requestId) {
-    throw new Error(
-      "Request ID is required."
-    );
+    throw new Error("Request ID is required.");
   }
 
-  const allowedStatuses = [
-    "pending",
-    "accepted",
-    "rejected",
-  ];
+  const allowedStatuses = ["pending", "accepted", "rejected"];
 
   if (!allowedStatuses.includes(status)) {
-    throw new Error(
-      "Invalid request status."
-    );
+    throw new Error("Invalid request status.");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/requests/${requestId}/status`,
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/requests/${encodeURIComponent(requestId)}/status`,
     {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        status,
-      }),
+      body: JSON.stringify({ status }),
     }
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to update request."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to update request.");
 };
 
 // ==========================================
 // GET MESSAGES
 // ==========================================
-export const getMessages = async (
-  requestId
-) => {
-  const token = localStorage.getItem(
-    "authToken"
-  );
 
-  if (!token) {
-    throw new Error("Authentication required.");
-  }
-
+export const getMessages = async (requestId) => {
   if (!requestId) {
-    throw new Error(
-      "Request ID is required."
-    );
+    throw new Error("Request ID is required.");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/requests/${requestId}/messages`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/requests/${encodeURIComponent(requestId)}/messages`
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to load messages."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to load messages.");
 };
 
 // ==========================================
 // SEND MESSAGE
 // ==========================================
-export const sendMessage = async (
-  requestId,
-  message
-) => {
-  const token = localStorage.getItem(
-    "authToken"
-  );
 
-  if (!token) {
-    throw new Error("Authentication required.");
-  }
-
+export const sendMessage = async (requestId, message) => {
   if (!requestId) {
-    throw new Error(
-      "Request ID is required."
-    );
+    throw new Error("Request ID is required.");
   }
 
   if (!message || !message.trim()) {
-    throw new Error(
-      "Message cannot be empty."
-    );
+    throw new Error("Message cannot be empty.");
   }
 
   const trimmedMessage = message.trim();
 
   if (trimmedMessage.length > 2000) {
-    throw new Error(
-      "Message cannot exceed 2000 characters."
-    );
+    throw new Error("Message cannot exceed 2000 characters.");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/requests/${requestId}/messages`,
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/requests/${encodeURIComponent(requestId)}/messages`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         message: trimmedMessage,
@@ -477,23 +275,20 @@ export const sendMessage = async (
     }
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Unable to send message."
-    );
-  }
-
-  return data;
+  return parseResponse(response, "Unable to send message.");
 };
 
 // ==========================================
 // LOGOUT
 // ==========================================
+
 export const logoutUser = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   localStorage.removeItem("authToken");
   localStorage.removeItem("familyUser");
   localStorage.removeItem("educatorUser");
 };
+
